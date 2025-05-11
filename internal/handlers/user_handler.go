@@ -3,16 +3,21 @@ package handlers
 import (
 	_ "BankSystem/internal/models"
 	"BankSystem/internal/repositories"
+	"BankSystem/internal/services"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 type UserHandler struct {
-	userRepo *repositories.UserRepository
+	userRepo    *repositories.UserRepository
+	authService *services.AuthService
 }
 
-func NewUserHandler(repo *repositories.UserRepository) *UserHandler {
-	return &UserHandler{userRepo: repo}
+func NewUserHandler(repo *repositories.UserRepository, authService *services.AuthService) *UserHandler {
+	return &UserHandler{
+		userRepo:    repo,
+		authService: authService,
+	}
 }
 
 // GetCurrentUser godoc
@@ -25,17 +30,10 @@ func NewUserHandler(repo *repositories.UserRepository) *UserHandler {
 // @Failure 401 {object} map[string]string
 // @Router /user/me [get]
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
-	email, exists := c.Get("email")
-	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	user, err := h.userRepo.FindByEmail(email.(string))
+	user, err := h.authService.GetCurrentUser(c)
 	if err != nil || user == nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-
 	c.JSON(http.StatusOK, user)
 }

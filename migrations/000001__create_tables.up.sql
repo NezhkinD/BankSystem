@@ -11,10 +11,11 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS accounts (
     id SERIAL  PRIMARY KEY,
     user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    balance    NUMERIC(12,2) DEFAULT 0,
+    balance    NUMERIC(12,2) DEFAULT 0.00,
     currency   CHAR(3) NOT NULL DEFAULT 'RUB',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
     );
 CREATE INDEX idx_accounts_user_id ON accounts(user_id);
 

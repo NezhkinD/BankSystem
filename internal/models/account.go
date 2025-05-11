@@ -1,9 +1,13 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+)
 
 type Account struct {
 	gorm.Model
-	UserID  uint
-	Balance float64
+	UserID   uint            `db:"user_id"  json:"user_id"`
+	Balance  decimal.Decimal `db:"balance"  json:"balance"`
+	Currency string          `db:"currency"  json:"currency"`
 }

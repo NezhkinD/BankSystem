@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"BankSystem/internal/services"
+	account_service "BankSystem/internal/services/account"
 )
 
 func main() {
@@ -42,7 +43,10 @@ func main() {
 		panic("failed to connect database")
 	}
 	userRepository := repositories.NewUserRepository(dbConnect)
-	userService := services.NewUserService(userRepository)
+	accountRepository := repositories.NewAccountRepository(dbConnect)
+	accountService := account_service.NewAccountService(accountRepository)
+	userService := services.NewUserService(userRepository, accountService)
+	authService := services.NewAuthService(userRepository)
 
 	// Инициализация хендлера
 	authHandler := handlers.NewAuthHandler(userService)
@@ -55,10 +59,17 @@ func main() {
 		auth.POST("/login", authHandler.Login)
 	}
 
-	userHandler := handlers.NewUserHandler(userRepository)
+	userHandler := handlers.NewUserHandler(userRepository, authService)
 	user := r.Group("/user")
 	{
 		user.GET("/profile", middleware.AuthMiddleware(), userHandler.GetCurrentUser)
+	}
+
+	accountHandler := handlers.NewAccountHandler(accountService, userService, authService)
+	account := r.Group("/account")
+	{
+		account.POST("/create", middleware.AuthMiddleware(), accountHandler.CreateAccount)
+		account.POST("/deposit", middleware.AuthMiddleware(), accountHandler.Deposit)
 	}
 
 	// Swagger

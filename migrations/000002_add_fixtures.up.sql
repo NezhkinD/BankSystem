@@ -1,6 +1,4 @@
--- password = password
-INSERT INTO users (username, email, password)
-VALUES ('testuser', 'test@example.com', '$2a$10$Vexamplehashedpassword1234567890');
-
-INSERT INTO accounts (user_id, balance)
-VALUES (1, 1000.00);
+-- password = 123456
+INSERT INTO public.users (username, email, password, created_at, updated_at, deleted_at) VALUES ( '1_user', '1_user@mail.com', '$2a$10$dYBxlO8qGQdksTh7k5nL2eP4HU9yIrvaem5s1Huu9vZq69sOqr5ta', '2025-05-11 14:51:35.479770', '2025-05-11 14:51:35.479770', null);
+INSERT INTO public.users (username, email, password, created_at, updated_at, deleted_at) VALUES ( '2_user', '2_user@mail.com', '$2a$10$5aZDiaAR6D1LUrq.t1f8TeIAgzKGy1ljCWhysdLr/ukvAWX3B4sEy', '2025-05-11 15:57:53.777887', '2025-05-11 15:57:53.777887', null);
+INSERT INTO public.users (username, email, password, created_at, updated_at, deleted_at) VALUES ( '3_user', '3_user@mail.com', '$2a$10$FLqFBatzJDQZ0TjiqgWkQ.KLQxZnCTnPZNGafEOR1WV6ylm1v.5S6', '2025-05-11 16:10:07.301491', '2025-05-11 16:10:07.301491', null);
