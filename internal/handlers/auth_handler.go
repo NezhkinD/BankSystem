@@ -11,15 +11,23 @@ package handlers
 import (
 	"BankSystem/internal/dto"
 	"BankSystem/internal/services"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
 	"time"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var JwtKey = []byte(os.Getenv("JWT_SECRET"))
+
+var (
+	ErrUserNotFound   = errors.New("user not found")
+	ErrEmailExists    = errors.New("user with this email already exists")
+	ErrUsernameExists = errors.New("username is already taken")
+)
 
 type AuthHandler struct {
 	userService *services.UserService
@@ -47,6 +55,18 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	existingByEmail, _ := h.userService.GetUserByEmail(req.Email)
+	if existingByEmail != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrEmailExists.Error()})
+		return
+	}
+
+	errUsernameExists, _ := h.userService.GetUserByUsername(req.Username)
+	if errUsernameExists != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrUsernameExists.Error()})
+		return
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not hash password"})
@@ -56,10 +76,20 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	err = h.userService.RegisterUser(req.Email, req.Username, string(hashedPassword))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
+		logrus.Error(err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
+	tokenString, err := h.generateJWT(req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": tokenString,
+	})
+
 }
 
 // Login godoc
@@ -92,16 +122,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Генерация JWT
-	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &jwt.RegisteredClaims{
-		Subject:   user.Email,
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+	tokenString, err := h.generateJWT(user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
 		return
@@ -115,4 +136,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"username": user.Username,
 		},
 	})
+}
+
+func (h *AuthHandler) generateJWT(email string) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &jwt.RegisteredClaims{
+		Subject:   email,
+		ExpiresAt: jwt.NewNumericDate(expirationTime),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(JwtKey)
 }

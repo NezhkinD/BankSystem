@@ -4,6 +4,7 @@ import (
 	"BankSystem/internal/config"
 	"BankSystem/internal/db"
 	"BankSystem/internal/handlers"
+	"BankSystem/internal/middleware"
 	repositories "BankSystem/internal/repositories"
 	"context"
 	"fmt"
@@ -13,8 +14,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -56,8 +55,14 @@ func main() {
 		auth.POST("/login", authHandler.Login)
 	}
 
+	userHandler := handlers.NewUserHandler(userRepository)
+	user := r.Group("/user")
+	{
+		user.GET("/profile", middleware.AuthMiddleware(), userHandler.GetCurrentUser)
+	}
+
 	// Swagger
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	log.Println("Server is running on :8080")
 	err = r.Run(":8080")
