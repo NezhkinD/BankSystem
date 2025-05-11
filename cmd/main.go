@@ -69,7 +69,9 @@ func main() {
 	account := r.Group("/account")
 	{
 		account.POST("/create", middleware.AuthMiddleware(), accountHandler.CreateAccount)
+		account.GET("/all", middleware.AuthMiddleware(), accountHandler.GetAllAccounts)
 		account.POST("/deposit", middleware.AuthMiddleware(), accountHandler.Deposit)
+		account.POST("/withdraw", middleware.AuthMiddleware(), accountHandler.Withdraw)
 	}
 
 	// Swagger

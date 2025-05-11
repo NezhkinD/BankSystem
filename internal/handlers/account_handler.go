@@ -57,7 +57,7 @@ func (h *AccountHandler) CreateAccount(c *gin.Context) {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.DepositRequest true "Сумма пополнения"
+// @Param request body dto.TransferRequest true "Сумма пополнения"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -75,14 +75,82 @@ func (h *AccountHandler) Deposit(c *gin.Context) {
 		return
 	}
 
-	newBalance, err := h.accountService.Deposit(user.ID, decimal.NewFromFloat(req.Amount))
+	newBalance, err := h.accountService.Deposit(req.Id, user.ID, decimal.NewFromFloat(req.Amount))
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Could not deposit funds"})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Deposit successful",
-		"new_balance": newBalance.String(),
+		"new_balance": newBalance.StringFixed(2),
 	})
+}
+
+// Withdraw godoc
+// @Summary Списание средств
+// @Description Списывает указанную сумму с аккаунта текущего пользователя
+// @Tags account
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.TransferRequest true "Сумма для списания"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 402 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /account/withdraw [post]
+func (h *AccountHandler) Withdraw(c *gin.Context) {
+	user, err := h.authService.GetCurrentUser(c)
+	if err != nil || user == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	var req dto.WithdrawRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newBalance, err := h.accountService.Withdraw(req.Id, user.ID, decimal.NewFromFloat(req.Amount))
+	if err != nil {
+		if err.Error() == "insufficient funds" {
+			c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{"error": "Insufficient funds"})
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Withdrawal successful",
+		"new_balance": newBalance.StringFixed(2),
+	})
+}
+
+// GetAllAccounts godoc
+// @Summary Получить все аккаунты текущего пользователя
+// @Description Возвращает список всех аккаунтов пользователя
+// @Tags account
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} models.Account
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /accounts [get]
+func (h *AccountHandler) GetAllAccounts(c *gin.Context) {
+	user, err := h.authService.GetCurrentUser(c)
+	if err != nil || user == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	accounts, err := h.accountService.GetAccountsByUserID(user.ID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Could not load accounts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, accounts)
 }

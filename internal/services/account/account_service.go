@@ -28,13 +28,31 @@ func (s *AccountService) CreateAccount(userID uint, balance decimal.Decimal) err
 	return s.accountRepo.Create(account)
 }
 
-func (s *AccountService) Deposit(userID uint, amount decimal.Decimal) (decimal.Decimal, error) {
-	account, err := s.accountRepo.FindByUserID(userID)
+func (s *AccountService) Deposit(id uint, userID uint, amount decimal.Decimal) (decimal.Decimal, error) {
+	account, err := s.accountRepo.FindByIdAndUserID(id, userID)
 	if err != nil || account == nil {
 		return decimal.Zero, errors.New("account not found")
 	}
 
 	account.Balance = account.Balance.Add(amount)
+	if err := s.accountRepo.Update(account); err != nil {
+		return decimal.Zero, err
+	}
+
+	return account.Balance, nil
+}
+
+func (s *AccountService) Withdraw(id uint, userID uint, amount decimal.Decimal) (decimal.Decimal, error) {
+	account, err := s.accountRepo.FindByIdAndUserID(id, userID)
+	if err != nil || account == nil {
+		return decimal.Zero, errors.New("account not found")
+	}
+
+	if account.Balance.LessThan(amount) {
+		return decimal.Zero, errors.New("insufficient funds")
+	}
+
+	account.Balance = account.Balance.Sub(amount)
 	if err := s.accountRepo.Update(account); err != nil {
 		return decimal.Zero, err
 	}
