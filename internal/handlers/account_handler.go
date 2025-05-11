@@ -154,3 +154,43 @@ func (h *AccountHandler) GetAllAccounts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, accounts)
 }
+
+// Transfer godoc
+// @Summary Перевод между аккаунтами
+// @Description Выполняет перевод средств между аккаунтами (своими или чужими)
+// @Tags account
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param request body dto.TransferRequest true "Данные перевода"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 402 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /account/transfer [post]
+func (h *AccountHandler) Transfer(c *gin.Context) {
+	var req dto.TransferRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.authService.GetCurrentUser(c)
+	if err != nil || user == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	err = h.accountService.Transfer(user.ID, req.FromAccountID, req.ToAccountID, decimal.NewFromFloat(req.Amount))
+	if err != nil {
+		switch err.Error() {
+		case "insufficient funds":
+			c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
+		default:
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Transfer successful"})
+}

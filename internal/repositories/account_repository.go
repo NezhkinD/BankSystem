@@ -51,3 +51,23 @@ func (r *AccountRepository) FindAllByUserID(userID uint) ([]*models.Account, err
 func (r *AccountRepository) Update(model *models.Account) error {
 	return r.db.Save(model).Error
 }
+
+// FindByIDWithLock — получение аккаунта с блокировкой строки
+func (r *AccountRepository) FindByIDWithLock(id uint) (*models.Account, error) {
+	var account models.Account
+	result := r.db.Where("id = ?", id).Set("gorm:query_option", "FOR UPDATE").First(&account)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &account, nil
+}
+
+// UpdateWithTx — обновление в рамках транзакции
+func (r *AccountRepository) UpdateWithTx(tx *gorm.DB, account *models.Account) error {
+	return tx.Save(account).Error
+}
+
+// WithinTransaction — обёртка для выполнения в транзакции
+func (r *AccountRepository) WithinTransaction(fn func(*gorm.DB) error) error {
+	return r.db.Transaction(fn)
+}

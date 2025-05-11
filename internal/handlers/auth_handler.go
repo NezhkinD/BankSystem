@@ -80,7 +80,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := h.generateJWT(req.Email)
+	user, err := h.userService.GetUserByEmail(req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
+		logrus.Error(err.Error())
+		return
+	}
+
+	tokenString, err := h.generateJWT(user.ID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
 		return
@@ -122,7 +129,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := h.generateJWT(user.Email)
+	tokenString, err := h.generateJWT(user.ID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
 		return
@@ -138,7 +145,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-func (h *AuthHandler) generateJWT(email string) (string, error) {
+func (h *AuthHandler) generateJWT(id uint, email string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &jwt.RegisteredClaims{
 		Subject:   email,
