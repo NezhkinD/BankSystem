@@ -3,26 +3,15 @@ DB_CONTAINER_PORT = 55432
 DB_USER_NAME = user_db
 DB_USER_PASS = 1213455
 
-run: db_run build migration start_java
-
-start_java:
-	java -jar target/OtpService.jar
-
-migration:
-	./mvnw flyway:migrate
-
-repair:
-	./mvnw flyway:repair
-	./mvnw flyway:migrate
+run: db_run build go_run
 
 build:
-	./mvnw clean package
+	go mod tidy
 
 db_restart: db_down db_run
 
-
 go_run:
-	go run cmd/main.go
+	go run main.go
 
 go_update:
 	go mod tidy
