@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL  PRIMARY KEY,
     username   VARCHAR(50) UNIQUE NOT NULL,
@@ -31,16 +32,18 @@ CREATE TABLE IF NOT EXISTS transactions (
     deleted_at TIMESTAMP
     );
 
--- CREATE TABLE IF NOT EXISTS cards (
---     id SERIAL PRIMARY KEY,
---     account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
---     number VARCHAR(20) UNIQUE NOT NULL,
---     cvv VARCHAR(4) NOT NULL,
---     expiry DATE NOT NULL,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
---     );
--- CREATE INDEX idx_cards_account_id ON cards(account_id);
+CREATE TABLE IF NOT EXISTS cards (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+    card_number TEXT UNIQUE NOT NULL,
+    cvv VARCHAR(255) NOT NULL,
+    expired_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
+    );
+CREATE INDEX idx_cards_account_id ON cards(account_id);
+
 --
 -- CREATE TABLE credits
 -- (

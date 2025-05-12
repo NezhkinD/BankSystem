@@ -21,6 +21,15 @@ func (r *AccountRepository) Create(account *models.Account) error {
 	return result.Error
 }
 
+func (r *AccountRepository) FindByID(id uint) (*models.Account, error) {
+	var account models.Account
+	result := r.db.Where("id = ?", id).First(&account)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &account, result.Error
+}
+
 func (r *AccountRepository) FindByUserID(id uint) (*models.Account, error) {
 	var account models.Account
 	result := r.db.Where("user_id = ?", id).First(&account)

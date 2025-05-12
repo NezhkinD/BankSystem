@@ -27,6 +27,7 @@ func main() {
 
 	dbCfg := config.LoadDB()
 	dsn := db.BuildDSN(dbCfg)
+	crypto := config.LoadCrypto()
 	runMigrations(dsn)
 
 	ctx := context.Background()
@@ -44,9 +45,12 @@ func main() {
 	}
 	userRepository := repositories.NewUserRepository(dbConnect)
 	accountRepository := repositories.NewAccountRepository(dbConnect)
+	cardRepository := repositories.NewCardRepository(dbConnect)
+
 	accountService := account_service.NewAccountService(accountRepository)
 	userService := services.NewUserService(userRepository, accountService)
 	authService := services.NewAuthService(userRepository)
+	cardService := services.NewCardService(dbConnect, cardRepository, accountRepository, accountService, crypto.HMACKey, logger)
 
 	// Инициализация хендлера
 	authHandler := handlers.NewAuthHandler(userService)
@@ -72,7 +76,19 @@ func main() {
 		account.GET("/all", middleware.AuthMiddleware(), accountHandler.GetAllAccounts)
 		account.POST("/deposit", middleware.AuthMiddleware(), accountHandler.Deposit)
 		account.POST("/withdraw", middleware.AuthMiddleware(), accountHandler.Withdraw)
-		account.POST("/transfer", middleware.AuthMiddleware(), accountHandler.Transfer)
+	}
+
+	transfer := r.Group("/transfer")
+	{
+		transfer.POST("/create", middleware.AuthMiddleware(), accountHandler.Transfer)
+	}
+
+	cardHandler := handlers.NewCardHandler(userService, accountService, cardService, authService, accountRepository)
+	card := r.Group("/card")
+	{
+		card.POST("/create", middleware.AuthMiddleware(), cardHandler.CreateCard)
+		card.GET("/all", middleware.AuthMiddleware(), cardHandler.GetCards)
+		card.POST("/payment", middleware.AuthMiddleware(), cardHandler.PayWithCard)
 	}
 
 	// Swagger
