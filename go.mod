@@ -12,6 +12,8 @@ require (
 	github.com/mailgun/mailgun-go/v4 v4.23.0
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/swaggo/files v1.0.1
+	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	golang.org/x/crypto v0.38.0
 	gorm.io/driver/postgres v1.5.11

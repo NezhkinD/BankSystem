@@ -21,8 +21,18 @@ import (
 
 	"BankSystem/internal/services"
 	account_service "BankSystem/internal/services/account"
+
+	_ "BankSystem/docs"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
+// @title BankSystem API
+// @version 1.0
+// @description API Server for Bank System
+// @host localhost:8080
+// @BasePath /api
+// @schemes http https
 func main() {
 	logger := logrus.New()
 
@@ -90,7 +100,7 @@ func main() {
 	}
 
 	// Swagger
-	//r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	log.Println("Server is running on :8080")
 	err = r.Run(":8080")
