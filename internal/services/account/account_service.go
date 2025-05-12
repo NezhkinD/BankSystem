@@ -5,17 +5,23 @@ import (
 	"BankSystem/internal/repositories"
 	"errors"
 	"github.com/shopspring/decimal"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"strconv"
 	"time"
 )
 
 type AccountService struct {
 	accountRepo *repositories.AccountRepository
 	userRepo    *repositories.UserRepository
+	log         *logrus.Logger
 }
 
-func NewAccountService(repo *repositories.AccountRepository) *AccountService {
-	return &AccountService{accountRepo: repo}
+func NewAccountService(repo *repositories.AccountRepository, log *logrus.Logger) *AccountService {
+	return &AccountService{
+		accountRepo: repo,
+		log:         log,
+	}
 }
 
 func (s *AccountService) CreateAccount(userID uint, balance decimal.Decimal) error {
@@ -25,6 +31,7 @@ func (s *AccountService) CreateAccount(userID uint, balance decimal.Decimal) err
 		Currency: "RUB",
 	}
 	account.DeletedAt = gorm.DeletedAt{Valid: false, Time: time.Time{}}
+	logrus.Info("created new account for user" + strconv.Itoa(int(userID)))
 	return s.accountRepo.Create(account)
 }
 
@@ -39,6 +46,7 @@ func (s *AccountService) Deposit(id uint, userID uint, amount decimal.Decimal) (
 		return decimal.Zero, err
 	}
 
+	logrus.Info("user " + strconv.Itoa(int(userID)) + " has been deposited successfully")
 	return account.Balance, nil
 }
 
@@ -57,6 +65,7 @@ func (s *AccountService) Withdraw(id uint, userID uint, amount decimal.Decimal) 
 		return decimal.Zero, err
 	}
 
+	logrus.Info("user " + strconv.Itoa(int(userID)) + " has been withdraw successfully")
 	return account.Balance, nil
 }
 

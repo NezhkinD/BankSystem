@@ -4,7 +4,6 @@ import (
 	"BankSystem/internal/dto"
 	"BankSystem/internal/models"
 	"BankSystem/internal/repositories"
-	account_service "BankSystem/internal/services/account"
 	"BankSystem/internal/utils"
 	"errors"
 	"fmt"
@@ -15,23 +14,37 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+
+	accountservice "BankSystem/internal/services/account"
 )
 
 type CardService struct {
 	db             *gorm.DB
 	cardRepo       *repositories.CardRepository
 	accountRepo    *repositories.AccountRepository
-	accountService *account_service.AccountService
+	userRepo       *repositories.UserRepository
+	accountService *accountservice.AccountService
+	mailService    *MailService
 	encryptKey     string
 	log            *logrus.Logger
 }
 
-func NewCardService(db *gorm.DB, cardRepo *repositories.CardRepository, accountRepo *repositories.AccountRepository, accountService *account_service.AccountService, encryptKey string, log *logrus.Logger) *CardService {
+func NewCardService(
+	db *gorm.DB,
+	cardRepo *repositories.CardRepository,
+	accountRepo *repositories.AccountRepository,
+	userRepo *repositories.UserRepository,
+	accountService *accountservice.AccountService,
+	mailService *MailService,
+	encryptKey string,
+	log *logrus.Logger) *CardService {
 	return &CardService{
 		db:             db,
 		cardRepo:       cardRepo,
 		accountRepo:    accountRepo,
+		userRepo:       userRepo,
 		accountService: accountService,
+		mailService:    mailService,
 		encryptKey:     encryptKey,
 		log:            log,
 	}
@@ -48,7 +61,7 @@ func (s *CardService) GetCardsByUserID(userID uint) ([]dto.CardResponse, error) 
 		if err != nil {
 			accountId := strconv.Itoa(int(dtos[i].AccountID))
 			decryptedNumber = "**** **** **** "
-			s.log.Error("failed to decrypt card number for account: " + accountId + ", error: " + err.Error())
+			logrus.Error("failed to decrypt card number for account: " + accountId + ", error: " + err.Error())
 		}
 
 		dtos[i].Number = decryptedNumber
@@ -59,6 +72,7 @@ func (s *CardService) GetCardsByUserID(userID uint) ([]dto.CardResponse, error) 
 func (s *CardService) GenerateCard(accountID uint) (*models.Card, error) {
 	id, err := s.cardRepo.FindByAccountId(accountID)
 	if err != nil || id != nil {
+		logrus.Warn("a card has already been created for this accountId " + strconv.Itoa(int(accountID)))
 		return nil, errors.New("a card has already been created for this account")
 	}
 
@@ -92,6 +106,7 @@ func (s *CardService) GenerateCard(accountID uint) (*models.Card, error) {
 	card.CardNumber = cardNumber
 	card.Cvv = cvv
 
+	logrus.Info("created new card for account " + strconv.Itoa(int(accountID)))
 	return card, nil
 }
 
@@ -150,20 +165,46 @@ func (s *CardService) PayWithCard(req dto.CardPaymentRequest) (decimal.Decimal, 
 
 	withdraw, err := s.accountService.Withdraw(account.ID, account.UserID, decimal.NewFromFloat(req.Amount))
 	if err != nil {
-		return decimal.Zero, errors.New("card account not found")
+		return decimal.Zero, err
 	}
 
-	err = s.db.Create(&models.Transaction{
+	user, err := s.userRepo.FindByID(account.UserID)
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	transaction := &models.Transaction{
 		FromAccountID:   account.ID,
 		ToAccountID:     account.ID,
 		Amount:          decimal.NewFromFloat(req.Amount),
 		TransactionType: "payment",
 		Currency:        "RUB",
-	}).Error
+	}
+	err = s.db.Create(transaction).Error
 
 	if err != nil {
 		return decimal.Zero, err
 	}
 
+	notification := dto.PaymentNotification{
+		To:        user.Email,
+		Name:      user.Username,
+		CardLast4: getLast4Digits(card.CardNumber),
+		Amount:    transaction.Amount,
+		Balance:   withdraw,
+		Date:      transaction.CreatedAt,
+	}
+	err = s.mailService.SendPaymentSuccess(notification)
+	if err != nil {
+		logrus.Warningf("Mail not found: " + err.Error())
+	}
+
 	return withdraw, nil
+}
+
+func getLast4Digits(s string) string {
+	if len(s) < 4 {
+		return ""
+	}
+	return s[len(s)-4:]
 }

@@ -5,17 +5,20 @@ import (
 	"BankSystem/internal/repositories"
 	"BankSystem/internal/security"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"net/http"
 )
 
 type AuthService struct {
 	userRepo *repositories.UserRepository
+	log      *logrus.Logger
 }
 
-func NewAuthService(userRepo *repositories.UserRepository) *AuthService {
+func NewAuthService(userRepo *repositories.UserRepository, log *logrus.Logger) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
+		log:      log,
 	}
 }
 

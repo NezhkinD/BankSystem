@@ -137,20 +137,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
-		"user": gin.H{
-			"id":       user.ID,
-			"email":    user.Email,
-			"username": user.Username,
-		},
 	})
 }
 
 func (h *AuthHandler) generateJWT(id uint, email string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
-	claims := &jwt.RegisteredClaims{
-		Subject:   email,
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	claims := &struct {
+		jwt.RegisteredClaims
+		UserID uint `json:"user_id"`
+	}{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   email,
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+		UserID: id,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -17,6 +17,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
+	"os"
 
 	"BankSystem/internal/services"
 	account_service "BankSystem/internal/services/account"
@@ -29,7 +30,6 @@ func main() {
 	dsn := db.BuildDSN(dbCfg)
 	crypto := config.LoadCrypto()
 	runMigrations(dsn)
-
 	ctx := context.Background()
 
 	pool, err := db.New(ctx, dbCfg)
@@ -47,15 +47,13 @@ func main() {
 	accountRepository := repositories.NewAccountRepository(dbConnect)
 	cardRepository := repositories.NewCardRepository(dbConnect)
 
-	accountService := account_service.NewAccountService(accountRepository)
-	userService := services.NewUserService(userRepository, accountService)
-	authService := services.NewAuthService(userRepository)
-	cardService := services.NewCardService(dbConnect, cardRepository, accountRepository, accountService, crypto.HMACKey, logger)
+	accountService := account_service.NewAccountService(accountRepository, logger)
+	userService := services.NewUserService(userRepository, accountService, logger)
+	authService := services.NewAuthService(userRepository, logger)
+	mailService := services.NewMailService(os.Getenv("MAILGUN_API_KEY"), os.Getenv("MAILGUN_DOMAIN"), logger)
+	cardService := services.NewCardService(dbConnect, cardRepository, accountRepository, userRepository, accountService, mailService, crypto.HMACKey, logger)
 
-	// Инициализация хендлера
 	authHandler := handlers.NewAuthHandler(userService)
-
-	// Настройка маршрутов
 	r := gin.Default()
 	auth := r.Group("/auth")
 	{
@@ -92,7 +90,7 @@ func main() {
 	}
 
 	// Swagger
-	// r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	//r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	log.Println("Server is running on :8080")
 	err = r.Run(":8080")
